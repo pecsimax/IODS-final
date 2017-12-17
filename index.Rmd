@@ -1,6 +1,15 @@
 ---
 title: "Index"
-output: html_document
+author: Pekka Vartiainen
+output:
+  html_document:
+    theme: journal
+    toc: true
+    toc_depth: 2
+    fig_caption: true
+    fig_width: 6
+    fig_height: 4
+    code_folding: hide
 ---
 
 ```{r, include=FALSE}
