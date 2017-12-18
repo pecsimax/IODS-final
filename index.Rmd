@@ -1,19 +1,231 @@
 ---
-title: "Index"
+title: "Final Assignment"
 author: Pekka Vartiainen
+date: 17.12.2017
+email: pekka.vartiainen@helsinki.fi
 output:
   html_document:
     theme: journal
     toc: true
     toc_depth: 2
     fig_caption: true
-    fig_width: 6
-    fig_height: 4
+    fig_width: 10
+    fig_height: 7
     code_folding: hide
 ---
 
-```{r, include=FALSE}
+```{r, include=FALSE, warning=FALSE, message=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(knitr)
+library(ggplot2)
+library(GGally)
+library(stringr)
+library(dplyr)
+library(plyr)
+
 ```
 
-## This is a temporary text.
+# Abstract
+High standard of living in a country doesn't mean gender equality. The aim of this excercise is to identify a factor that measures female empowerment and to analyze, how countries' welfare is related to the female empowerment. We use the UN dataset created for calculating HDI, human development index and GII, gender inequality index. 
+
+# Introduction
+## About the data
+
+We'll be working with the 'human' dataset. It's United Nations data, that aims for creating an index describing development of a country, that takes into account many different factors, not only e.g. economic development. 
+
+Two indices are calculated. One is called 'HDI', human development index. HDI is a mean of three indices - education index, life expectancy index, and GNI index (gross national income).
+
+The other is called gender inequality index, 'GII', that reflects the differences between males and females. To give a general description, it is calculated based on level of female reproductive health, ratio of females vs males in work force, ratio of females vs. males with high education and ratio of females in parliament. 
+
+More accurate description of indices can be found [here](http://hdr.undp.org/sites/default/files/hdr2015_technical_notes.pdf)
+
+### Data creation and variables
+
+We construct the present dataset from two datasets, 'hdi' and 'gii', so that the present data contains the two indices and the components they are based on. [link to data wrangling file]()
+
+The data contains following variables: 
+* edu_ratio: Ratio of females with at least secondary education to males with at least secondary education
+* part_ratio: ratio of females to males who are in the active labour force
+* edu_exp: expected years of education
+* life_exp: life expectancy
+* gni: gross national income
+* mat_mort_ratio: maternal mortality ratio
+* ado_birthr: adolescent birth rate
+* parli_f: percentage of female representatives in parliament
+
+## Research question
+
+*What describes female empowerment? What factors contribute to female empowerment?*
+
+Female empowerment, i.e. the possibilities of women to participate in society, reflects IMO quite high human development. It would reflect that a society has gone beyond minimizing mortality and suffering. Having high human development index, in other words high education, life expectancy and GNI, doesn't necessarily mean that females have equal chances to participate in society
+
+1) From previous excercises, we've seen that edu_ratio, part_ratio and parli_f do not correlate that much, and not even with GII, gender equality index, although they are used to construct the index. With principal component analysis (PCA), can we find scales from the components of gender inequality index that represent possibilities of females in society? To put it more clearly, maternal mortality doesn't necessarily tell a lot about women's position in society especially in rich countries.
+
+2) If we find this kind of scale, what components of societal development are most beneficial to gender equality? With linear regression, we can try to find components of human development index (gni, mean years of education, life expectancy) that could be related to women's position. Does education help women to be empowered?
+
+# Results
+## Data characteristics
+The structure of data and summary of variables:
+```{r}
+human <- read.csv("/Users/pecsi_max/Documents/GitHub/IODS-final/human", row.names = 1)
+str(human)
+summary(human)
+```
+
+```{r}
+# exploratory graph showing correlations
+pairs_plot_human <- ggpairs(human, mapping = aes(alpha = 0.5), 
+                      lower = list(combo = wrap("facethist", bins = 20),
+                                   continuous = wrap("points", size=0.1)),
+                      upper = list(continuous = wrap("cor", alpha = 1)))
+pairs_plot_human
+```
+<br> GII (gender inequality index) correlates stongly with HDI and GNI. They also correlate with maternal mortality and slightly less with adolescent birthrate. The correlation of HDI is not as strong with parli_f, edu_ratio and part_ratio. Interestingly, GNI has much weaker correlation with parli_f, edu_ratio and part_ratio than with ado_birthr or maternal mortality.
+
+### Logaritmic transformation for distributions
+Let's do a logarithmic transformation for variables ado_birthr, gni, and mat_mort_ratio. PCA and other statistical analyses assume normal distribution, and the log-transformed variables should work better in the analyses.
+
+```{r}
+human_log <- human %>% 
+  dplyr::mutate(ado_birthr = log(ado_birthr),
+                gni = log(gni),
+                mat_mort_ratio = log(mat_mort_ratio)) %>%
+  dplyr::rename(ado_birth_log = ado_birthr,
+                gni_log = gni,
+                mat_mort_log = mat_mort_ratio)
+
+#for some reason, the mutation above dropped the row names. Let's set them again from the original data.
+rownames(human_log) <- rownames(human)
+
+pairs_plot_human_log <- ggpairs(human_log, mapping = aes(alpha = 0.5), 
+                      lower = list(combo = wrap("facethist", bins = 20),
+                                   continuous = wrap("points", size=0.1)),
+                      upper = list(continuous = wrap("cor", alpha = 1)))
+
+pairs_plot_human_log
+```
+The distributions of log-transformed variables. They look much better now.
+
+
+## Principal component analysis
+For the PCA, we use the gender inequality variables separately. This might reasonable, because they are not that much correlated in the previous pairs plots. 
+
+```{r}
+# select the variables from log-transformed dataset and scale
+human_pca <- human_log %>% 
+  dplyr::select(parli_f, edu_ratio, part_ratio, ado_birth_log, mat_mort_log) %>%
+  scale
+
+pca_human <- prcomp(human_pca) 
+summary(pca_human)
+```
+<br>
+The first component explains 45% of the variance in the variables, and the second 25%. Let's look at the biplot of the first 2 PC:s.
+
+```{r}
+biplot(pca_human, choices = 1:2, cex = c(0.6, 1), col = c("grey40", "deeppink2"))
+```
+<br> The two first components, PC1 and PC2 are quite nicely aligned. Edu_ratio, maternal mortality and adolescent birthrate contribute mainly to the first PC, and parli_f and part_ratio contribute to PC2. We can deduct that the PC2 would somehow reflect the women's position in society, while PC1 describes the so-called minimum requirements for women's welfare. 
+
+Note that the Nordic countries are nicely separated in low left, and belgium is with them. 
+
+There are some pretty evident outliers as well. We might have a good reason to doubt that Rwanda might have some problems in providing reliable data.
+
+```{r}
+
+```
+
+## Linear regression
+### What predicts female participation?
+We do a linear regression model predicting the PC2 from previous analyses. First, we add the PC2 to the dataset. 
+
+```{r}
+# extract the two first principal components by using 'predict', 
+comps <- predict(pca_human) %>% as.data.frame %>% dplyr::select(PC1, PC2)
+#add the columns to dataframe
+human_comp <- merge(human_log, comps, by = "row.names")
+# Merge adds row names as a new variable, so we need to add names and drop the old variable
+rownames(human_comp) <- human_comp$Row.names
+human_comp <- human_comp %>% dplyr::select(-Row.names)
+
+
+head(dplyr::select(human_comp, PC2), 10)
+```
+<br>
+Here we have a scale trying to represent the possibilities of females in participating to society. Note that smaller or negative values reflect "better" participation of women.
+
+Next, we select variables to be used in the linear model, and we look at their associations with one last pairs plot.
+```{r}
+human_reg <- human_comp %>% dplyr::select(PC2, gni_log, edu_mean, life_exp, hdi)
+
+ggpairs(human_reg, mapping = aes(alpha = 0.5), 
+                      lower = list(combo = wrap("facethist", bins = 20),
+                                   continuous = wrap("points", size=0.1)),
+                      upper = list(continuous = wrap("cor", alpha = 1)))
+```
+<br> We see that PC2 is not really correlated with any of the variables. Not a surprise, when we remember how  GNI, life expectancy and edu_mean were correlated with maternal mortality but not with parli_f and part_ratio. GNI, edu_mean and life_exp are very strongly correlated. Let's still try to create an exploratory linear model, to see if things change when the effect of other variables is held constant.
+
+```{r}
+lm <- lm(data = human_reg, PC2 ~ gni_log + edu_mean + life_exp)
+
+summary(lm)
+```
+Now GNI and mean years of education appear as statistically significant predictors. 
+
+However, the R2 of the model is very small, indicating that there's a lot of unexplained variance. Another problem is that edu_mean is very strongly correlated with GNI and life expectancy, which might present a problem with collinearity. Collinearity is not analyzed here.
+
+Still, the results suggest that education might have some role in female empowerment. Interestingly GNI and education have opposite associations with PC2, when they are in the same model. This makes sense, because PC2 was constructed so that it would not be too much related to HDI, where GNI is an important component (see the 'PCA' section).
+
+### model diagnostics
+```{r}
+par(mfrow = c(2,2), oma = c(0, 0, 2, 0), mar = c(2.5,3,2,0.5), mgp = c(1.5,.5,0))
+plot(lm, which = c(1,2,5), add.smooth = T)
+```
+<br>
+
+#### about the diagnostic plots
+* in ‘Residuals’, the mean of residuals (i.e. the difference between predicted and observed values of ‘points’) is close to zero, but in the extreme ends it appears to rise above zero, reminding of parabolar shape.
+* in ‘Normal Q-Q’ plot, most of the residuals are beautifully lined, except for extreme ends. Same outliers are indicated - Rwanda again, and also some middle Eastern countries.
+* in ‘Residuals vs. Leverage’, all the cases are well inside the Cook’s distance, which means that even the outliers follow the pattern of other data points, and that they should not change the model too much. In fact, the limit values of Cook’s distance fall outside of the plot’s range.
+
+### summary of the linear model
+
+In summary, the model's not good for describing a phenomenom, but it hints that there might be an association.
+
+When GNI is held constant, mean years of education appear to be associated with slightly better females' participation in societal activities. 
+
+## Ideas for further research
+Next, we could limit this type of analysis to only a set of similar countries, for example based on GDP or geographical locations. 
+
+Some non-linear approaches could help to clarify these results. Obviously, these phenomena are not necessarily linear in nature.
+
+Also K-means clustering or some other clustering technique might be beneficial for identifying groups of countries that fare similarly in these measurements. Further, it could be interesting to see if e.g. some western European countries do clearly better or worse in females' participation in society.
+
+
+# Extra
+This is for my own exploration, no need to read or include to the assessment! Just exploring some K-means and LDA combined.
+
+```{r eval = FALSE, }
+
+human_k_scaled <- human_comp %>% dplyr::select(edu_ratio, part_ratio, edu_mean, life_exp, gni_log, mat_mort_log, ado_birth_log, parli_f) %>% scale
+
+set.seed(123)
+k_max <- 10
+twcss <- sapply(1:k_max, function(k){kmeans(human_k_scaled, k)$tot.withinss})
+qplot(x = 1:k_max, y = twcss, geom = 'line')
+
+kmc <- kmeans(human_k_scaled, centers = 4)
+human_comp$cluster <- as.factor(kmc$cluster)
+
+human_comp %>% gather(key, value, -cluster) %>%
+  ggplot(., aes(x = key, y = value, group = cluster, col = cluster)) + geom_boxplot() + 
+  facet_wrap("key", scales = "free", shrink = TRUE)
+
+human_k_scaled$cluster <- as.numeric(kmc$cluster)
+
+human_lda <- human_k_scaled %>% mutate(cluster = as.numeric(cluster))
+lda_bonus <- lda(cluster ~ ., data = human_k_scaled)
+
+plot(lda_bonus, dimen = 2, col = human_lda$cluster, pch = human_lda$cluster)
+lda.arrows(lda_bonus, myscale = 2.5)
+```
