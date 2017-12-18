@@ -5,9 +5,10 @@ date: 17.12.2017
 email: pekka.vartiainen@helsinki.fi
 output:
   html_document:
-    theme: journal
+    theme: cosmo
     toc: true
-    toc_depth: 2
+    toc_depth: 3
+    toc_float: true
     fig_caption: true
     fig_width: 10
     fig_height: 7
@@ -202,10 +203,10 @@ Some non-linear approaches could help to clarify these results. Obviously, these
 Also K-means clustering or some other clustering technique might be beneficial for identifying groups of countries that fare similarly in these measurements. Further, it could be interesting to see if e.g. some western European countries do clearly better or worse in females' participation in society.
 
 
-# Extra
-This is for my own exploration, no need to read or include to the assessment! Just exploring some K-means and LDA combined.
+# Thanks for reading!
+What follows is for my own exploration, no need to read or include to the assessment! 
 
-```{r eval = FALSE, }
+```{r eval = FALSE, include = FALSE}
 
 human_k_scaled <- human_comp %>% dplyr::select(edu_ratio, part_ratio, edu_mean, life_exp, gni_log, mat_mort_log, ado_birth_log, parli_f) %>% scale
 
